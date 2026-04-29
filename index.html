@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HD Manager — Mover Programas para HD Externo</title>
+<style>
+/* ── RESET & BASE ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d12;--bg2:#13131c;--bg3:#1a1a26;--bg4:#20202e;
+  --border:rgba(99,102,241,.18);--border2:rgba(99,102,241,.32);
+  --indigo:#6366f1;--indigo2:#818cf8;--indigo-dim:rgba(99,102,241,.12);
+  --green:#4ade80;--red:#f87171;--yellow:#fbbf24;--cyan:#22d3ee;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#475569;
+  --font:'Segoe UI',system-ui,sans-serif;
+  --radius:8px;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px}
+
+/* ── TITLEBAR ── */
+#titlebar{
+  display:flex;align-items:center;justify-content:space-between;
+  height:40px;padding:0 16px;background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  -webkit-app-region:drag;user-select:none;flex-shrink:0;
+}
+.tb-left{display:flex;align-items:center;gap:10px}
+.tb-logo{font-size:1.1rem;font-weight:700;color:var(--indigo2);letter-spacing:.03em}
+.tb-sub{font-size:.7rem;color:var(--text3)}
+.tb-btns{display:flex;gap:6px;-webkit-app-region:no-drag}
+.tb-btn{
+  width:28px;height:28px;border:none;border-radius:4px;
+  background:var(--bg3);color:var(--text2);cursor:pointer;
+  font-size:.9rem;display:flex;align-items:center;justify-content:center;
+  transition:background .15s;
+}
+.tb-btn:hover{background:var(--bg4)}
+.tb-btn.close:hover{background:#e74c3c;color:#fff}
+
+/* ── LAYOUT ── */
+#root{display:flex;height:calc(100vh - 40px)}
+
+/* ── SIDEBAR ── */
+#sidebar{
+  width:220px;flex-shrink:0;background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:12px 0;
+}
+.nav-section{padding:6px 16px 4px;font-size:.65rem;
+  color:var(--text3);letter-spacing:.1em;text-transform:uppercase}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;cursor:pointer;color:var(--text2);
+  border-left:3px solid transparent;transition:all .15s;font-size:.88rem;
+}
+.nav-item:hover{background:var(--indigo-dim);color:var(--text)}
+.nav-item.active{
+  background:var(--indigo-dim);color:var(--indigo2);
+  border-left-color:var(--indigo);font-weight:600;
+}
+.nav-icon{font-size:1.1rem;width:22px;text-align:center}
+
+.sidebar-drives{padding:12px 12px 0;border-top:1px solid var(--border);margin-top:auto}
+.sidebar-drives-title{font-size:.65rem;color:var(--text3);
+  letter-spacing:.1em;text-transform:uppercase;padding:0 4px 8px}
+.drive-pill{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 8px;border-radius:6px;margin-bottom:6px;
+  background:var(--bg3);border:1px solid var(--border);
+}
+.drive-letter{
+  width:32px;height:32px;border-radius:6px;background:var(--indigo-dim);
+  border:1px solid var(--border2);display:flex;align-items:center;
+  justify-content:center;font-weight:700;color:var(--indigo2);font-size:.9rem;
+}
+.drive-info{flex:1;min-width:0}
+.drive-name{font-size:.75rem;font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drive-bar-wrap{height:4px;background:var(--bg4);border-radius:2px;margin-top:3px}
+.drive-bar{height:100%;border-radius:2px;background:var(--indigo)}
+.drive-bar.warn{background:var(--yellow)}
+.drive-bar.full{background:var(--red)}
+.drive-free{font-size:.65rem;color:var(--text3)}
+
+/* ── MAIN CONTENT ── */
+#content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+#content::-webkit-scrollbar{width:6px}
+#content::-webkit-scrollbar-track{background:var(--bg)}
+#content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+.page{display:none;flex-direction:column;flex:1;padding:24px}
+.page.active{display:flex}
+
+/* ── PAGE HEADER ── */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-shrink:0}
+.page-title{font-size:1.3rem;font-weight:700;color:var(--text)}
+.page-sub{font-size:.8rem;color:var(--text2);margin-top:2px}
+.page-actions{display:flex;gap:8px}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:8px 16px;border-radius:var(--radius);border:none;
+  font-size:.82rem;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:all .15s;
+}
+.btn-primary{background:var(--indigo);color:#fff}
+.btn-primary:hover{background:var(--indigo2)}
+.btn-outline{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+.btn-outline:hover{background:var(--indigo-dim);color:var(--text);border-color:var(--indigo)}
+.btn-danger{background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.btn-danger:hover{background:rgba(248,113,113,.2)}
+.btn-success{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.btn-success:hover{background:rgba(74,222,128,.2)}
+.btn-sm{padding:5px 10px;font-size:.75rem}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── CARDS ── */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.card-title{font-size:.85rem;font-weight:700;color:var(--indigo2);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+
+/* ── HD SELECTOR ── */
+.hd-selector{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.hd-option{
+  padding:10px 16px;border-radius:var(--radius);border:2px solid var(--border);
+  background:var(--bg3);cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;gap:8px;font-size:.85rem;
+}
+.hd-option:hover{border-color:var(--indigo)}
+.hd-option.selected{border-color:var(--indigo);background:var(--indigo-dim);color:var(--indigo2)}
+.hd-option .hd-drive{font-weight:700;font-size:1rem}
+.hd-option .hd-free{font-size:.72rem;color:var(--text2)}
+
+/* ── SEARCH ── */
+.search-bar{
+  display:flex;align-items:center;gap:8px;margin-bottom:12px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);
+  padding:0 12px;
+}
+.search-bar input{
+  flex:1;background:none;border:none;outline:none;color:var(--text);
+  font-size:.88rem;padding:10px 0;
+}
+.search-bar input::placeholder{color:var(--text3)}
+
+/* ── PROGRAMS TABLE ── */
+.prog-table{width:100%;border-collapse:collapse}
+.prog-table th{
+  text-align:left;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text3);padding:8px 10px;
+  border-bottom:1px solid var(--border);background:var(--bg3);
+  position:sticky;top:0;
+}
+.prog-table td{
+  padding:10px 10px;border-bottom:1px solid var(--border);
+  font-size:.82rem;vertical-align:middle;
+}
+.prog-table tr:hover td{background:rgba(99,102,241,.04)}
+.prog-name{font-weight:600;color:var(--text);max-width:260px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog-path{font-size:.72rem;color:var(--text3);max-width:220px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace}
+.prog-size{font-size:.78rem;color:var(--text2);white-space:nowrap}
+.prog-version{font-size:.72rem;color:var(--text3)}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 7px;border-radius:12px;font-size:.68rem;font-weight:600;
+}
+.badge-ssd{background:rgba(99,102,241,.15);color:var(--indigo2);border:1px solid rgba(99,102,241,.3)}
+.badge-hd{background:rgba(74,222,128,.1);color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.badge-sym{background:rgba(251,191,36,.1);color:var(--yellow);border:1px solid rgba(251,191,36,.3)}
+
+/* ── LOADING SPINNER ── */
+.spinner{
+  display:inline-block;width:18px;height:18px;
+  border:2px solid var(--border2);border-top-color:var(--indigo);
+  border-radius:50%;animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{display:flex;align-items:center;gap:10px;
+  color:var(--text2);font-size:.88rem;padding:24px 0}
+
+/* ── PROGRESS MODAL ── */
+#progress-overlay{
+  position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(4px);display:none;
+  align-items:center;justify-content:center;
+}
+#progress-overlay.show{display:flex}
+.progress-box{
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:12px;padding:28px 32px;width:480px;max-width:95vw;
+  box-shadow:0 0 60px rgba(99,102,241,.2);
+}
+.progress-title{font-size:1rem;font-weight:700;margin-bottom:6px}
+.progress-sub{font-size:.8rem;color:var(--text2);margin-bottom:18px}
+.progress-bar-wrap{height:8px;background:var(--bg4);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--indigo),var(--indigo2));
+  border-radius:4px;transition:width .3s;width:0%}
+.progress-log{
+  background:var(--bg);border:1px solid var(--border);border-radius:6px;
+  padding:10px 12px;max-height:160px;overflow-y:auto;
+  font-family:monospace;font-size:.73rem;color:var(--text2);line-height:1.6;
+}
+.progress-log .ok{color:var(--green)}
+.progress-log .err{color:var(--red)}
+.progress-log .info{color:var(--cyan)}
+.progress-actions{margin-top:16px;display:flex;justify-content:flex-end;gap:8px}
+
+/* ── TOAST ── */
+#toast-container{position:fixed;bottom:20px;right:20px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px}
+.toast{
+  padding:12px 16px;border-radius:8px;font-size:.82rem;font-weight:600;
+  display:flex;align-items:center;gap:8px;min-width:280px;
+  animation:toast-in .25s ease;box-shadow:0 4px 20px rgba(0,0,0,.4);
+}
+.toast.success{background:#1a3a27;color:var(--green);border:1px solid rgba(74,222,128,.3)}
+.toast.error{background:#3a1a1a;color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.toast.info{background:#1a1f3a;color:var(--indigo2);border:1px solid var(--border2)}
+@keyframes toast-in{from{transform:translateX(100%);opacity:0}to{transform:none;opacity:1}}
+
+/* ── STAT CARDS ── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;display:flex;flex-direction:column;gap:4px;
+}
+.stat-icon{font-size:1.4rem;margin-bottom:4px}
+.stat-val{font-size:1.4rem;font-weight:700;color:var(--indigo2)}
+.stat-label{font-size:.72rem;color:var(--text3)}
+
+/* ── EMPTY STATE ── */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:60px 20px;gap:10px;color:var(--text3);
+}
+.empty-icon{font-size:3rem;opacity:.3}
+.empty-text{font-size:.9rem}
+
+/* ── STEP GUIDE ── */
+.steps{display:flex;flex-direction:column;gap:14px}
+.step{display:flex;gap:14px;align-items:flex-start}
+.step-num{
+  width:28px;height:28px;border-radius:50%;background:var(--indigo-dim);
+  border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;
+  font-size:.8rem;font-weight:700;color:var(--indigo2);flex-shrink:0;margin-top:1px;
+}
+.step-body h4{font-size:.88rem;color:var(--text);margin-bottom:3px}
+.step-body p{font-size:.78rem;color:var(--text2);line-height:1.5}
+
+/* ── CHECKBOX ── */
+.prog-checkbox{width:16px;height:16px;accent-color:var(--indigo);cursor:pointer}
+
+/* ── TABLE CONTAINER ── */
+.table-wrap{overflow-y:auto;flex:1;border:1px solid var(--border);border-radius:var(--radius)}
+.table-wrap::-webkit-scrollbar{width:5px}
+.table-wrap::-webkit-scrollbar-track{background:var(--bg)}
+.table-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* ── SELECTION BAR ── */
+.selection-bar{
+  display:none;align-items:center;gap:10px;
+  background:var(--indigo-dim);border:1px solid var(--border2);
+  border-radius:var(--radius);padding:10px 14px;margin-bottom:10px;
+}
+.selection-bar.show{display:flex}
+.sel-count{font-size:.85rem;font-weight:700;color:var(--indigo2)}
+.sel-size{font-size:.78rem;color:var(--text2)}
+</style>
+</head>
+<body>
+
+<!-- TITLEBAR -->
+<div id="titlebar">
+  <div class="tb-left">
+    <div class="tb-logo">💾 HD Manager</div>
+    <div class="tb-sub">Mover programas e jogos do SSD para o HD externo</div>
+  </div>
+  <div class="tb-btns">
+    <button class="tb-btn" onclick="ipcRenderer.send('win-minimize')">─</button>
+    <button class="tb-btn" onclick="ipcRenderer.send('win-maximize')">□</button>
+    <button class="tb-btn close" onclick="ipcRenderer.send('win-close')">✕</button>
+  </div>
+</div>
+
+<div id="root">
+  <!-- SIDEBAR -->
+  <nav id="sidebar">
+    <div class="nav-section">Menu</div>
+    <div class="nav-item active" data-page="home" onclick="navigate('home',this)">
+      <span class="nav-icon">🏠</span> Início
+    </div>
+    <div class="nav-item" data-page="move" onclick="navigate('move',this)">
+      <span class="nav-icon">📦</span> Mover para HD
+    </div>
+    <div class="nav-item" data-page="moved" onclick="navigate('moved',this)">
+      <span class="nav-icon">✅</span> Já no HD
+    </div>
+    <div class="nav-item" data-page="install" onclick="navigate('install',this)">
+      <span class="nav-icon">🔧</span> Instalar no HD
+    </div>
+
+    <div class="sidebar-drives">
+      <div class="sidebar-drives-title">Discos</div>
+      <div id="drives-list">
+        <div style="font-size:.72rem;color:var(--text3);padding:4px">Carregando...</div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- CONTENT -->
+  <main id="content">
+
+    <!-- ── HOME ── -->
+    <div id="page-home" class="page active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Bem-vindo ao HD Manager</div>
+          <div class="page-sub">Libere espaço no SSD movendo programas e jogos para o HD externo</div>
+        </div>
+        <button class="btn btn-outline" onclick="refreshDrives()">🔄 Atualizar discos</button>
+      </div>
+
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card">
+          <div class="stat-icon">💿</div>
+          <div class="stat-val" id="stat-ssd-free">--</div>
+          <div class="stat-label">Livre no SSD (C:)</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🖥️</div>
+          <div class="stat-val" id="stat-hd-free">--</div>
+          <div class="stat-label">Livre no HD externo</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📦</div>
+          <div class="stat-val" id="stat-moved">--</div>
+          <div class="stat-label">Programas movidos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💾</div>
+          <div class="stat-val" id="stat-saved">--</div>
+          <div class="stat-label">Espaço liberado</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 Como funciona</div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-body">
+              <h4>Escolha o HD externo</h4>
+              <p>Na tela "Mover para HD", selecione qual disco externo vai receber os programas.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-body">
+              <h4>Selecione os programas</h4>
+              <p>Veja os programas instalados no SSD, selecione quais mover. Jogos grandes são os melhores candidatos.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-body">
+              <h4>Mova com um clique</h4>
+              <p>O programa copia tudo para o HD, cria um atalho inteligente (Junction) no lugar original.
+              O Windows não percebe diferença — o programa continua funcionando normalmente.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-body">
+              <h4>Novos programas direto no HD</h4>
+              <p>Na aba "Instalar no HD", redirecione a pasta padrão do Windows para o HD externo.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="background:rgba(251,191,36,.05);border-color:rgba(251,191,36,.2)">
+        <div class="card-title" style="color:var(--yellow)">⚠️ Atenção antes de começar</div>
+        <ul style="font-size:.82rem;color:var(--text2);padding-left:20px;line-height:2">
+          <li>Execute o programa <strong>como Administrador</strong> (necessário para criar Junctions)</li>
+          <li>O HD externo deve estar conectado sempre que for usar os programas movidos</li>
+          <li>Não desconecte o HD durante a cópia</li>
+          <li>Feche os programas antes de movê-los</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ── MOVER PARA HD ── -->
+    <div id="page-move" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">📦 Mover para HD</div>
+          <div class="page-sub">Selecione programas do SSD para mover ao HD externo</div>
+        </div>
+        <button class="btn btn-outline" onclick="loadPrograms()">🔄 Atualizar lista</button>
+      </div>
+
+      <!-- HD Selector -->
+      <div class="card">
+        <div class="card-title">🖥️ Destino: HD Externo</div>
+        <div class="hd-selector" id="hd-selector-move">
+          <div style="font-size:.82rem;color:var(--text3)">Carregando discos...</div>
+        </div>
+      </div>
+
+      <!-- Search + Table -->
+      <div class="search-bar">
+        <span>🔍</span>
+        <input type="text" id="search-programs" placeholder="Buscar programa ou jogo..." oninput="filterPrograms()"/>
+      </div>
+
+      <div class="selection-bar" id="selection-bar">
+        <span class="sel-count" id="sel-count">0 selecionados</span>
+        <span class="sel-size" id="sel-size"></span>
+        <div style="flex:1"></div>
+        <button class="btn btn-success btn-sm" onclick="moveSelected()">📦 Mover selecionados para HD</button>
+        <button class="btn btn-outline btn-sm" onclick="clearSelection()">✕ Limpar</button>
+      </div>
+
+      <div class="table-wrap" id="programs-table-wrap">
+        <div class="loading-msg" style="padding:24px"><div class="spinner"></div> Carregando programas instalados...</div>
+      </div>
+    </div>
+
+    <!-- ── JÁ NO HD ── -->
+    <div id="page-moved" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">✅ Já no HD</div>
+          <div class="page-sub">Programas que foram movidos para o HD externo</div>
+        </div>
+        <button class="btn btn-outline" onclick="loadMoved()">🔄 Atualizar</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🖥️ HD a verificar</div>
+        <div class="hd-selector" id="hd-selector-moved">
+          <div style="font-size:.82rem;color:var(--text3)">Carregando discos...</div>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="moved-table-wrap">
+        <div class="empty-state">
+          <div class="empty-icon">📂</div>
+          <div class="empty-text">Selecione um HD acima para ver os programas movidos</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INSTALAR NO HD ── -->
+    <div id="page-install" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">🔧 Instalar no HD</div>
+          <div class="page-sub">Redireciona novos instaladores para o HD externo</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">🖥️ HD de destino</div>
+        <div class="hd-selector" id="hd-selector-install">
+          <div style="font-size:.82rem;color:var(--text3)">Carregando discos...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📋 O que este recurso faz</div>
+        <ul style="font-size:.82rem;color:var(--text2);line-height:2;padding-left:20px">
+          <li>Altera a pasta padrão <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">Program Files</code> do Windows para apontar para o HD</li>
+          <li>Novos programas instalados pelo <strong>.exe padrão</strong> irão automaticamente para o HD</li>
+          <li>Steam, Epic e outros launchers continuam com suas próprias configurações</li>
+          <li>Você pode desfazer a qualquer momento pelo botão "Restaurar"</li>
+        </ul>
+      </div>
+
+      <div class="card" style="background:rgba(99,102,241,.05);border-color:var(--border2)">
+        <div class="card-title">🎮 Jogos no Steam / Epic / GOG</div>
+        <p style="font-size:.82rem;color:var(--text2);line-height:1.7;margin-bottom:12px">
+          Para jogos via launchers, é mais fácil configurar diretamente no launcher:
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="background:var(--bg3);border-radius:6px;padding:10px 14px;font-size:.8rem">
+            <strong>Steam:</strong> Configurações → Downloads → Pastas da Biblioteca Steam → Adicionar pasta no HD
+          </div>
+          <div style="background:var(--bg3);border-radius:6px;padding:10px 14px;font-size:.8rem">
+            <strong>Epic Games:</strong> Configurações → Gerenciar Jogos → Alterar pasta de instalação
+          </div>
+          <div style="background:var(--bg3);border-radius:6px;padding:10px 14px;font-size:.8rem">
+            <strong>GOG Galaxy:</strong> Configurações → Padrões para Instalação → Mudar diretório
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" id="btn-set-install-dir" onclick="setInstallDir()">
+          ✅ Redirecionar instalações para o HD
+        </button>
+        <button class="btn btn-danger" onclick="restoreInstallDir()">
+          ↩️ Restaurar pasta padrão (SSD)
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- PROGRESS MODAL -->
+<div id="progress-overlay">
+  <div class="progress-box">
+    <div class="progress-title" id="prog-title">Movendo programa...</div>
+    <div class="progress-sub" id="prog-sub">Por favor aguarde. Não desconecte o HD.</div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-bar"></div></div>
+    <div class="progress-log" id="prog-log"></div>
+    <div class="progress-actions">
+      <button class="btn btn-outline btn-sm" id="btn-prog-close" onclick="closeProgress()" style="display:none">
+        ✕ Fechar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

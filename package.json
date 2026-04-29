@@ -1,0 +1,13 @@
+{
+  "name": "hd-manager",
+  "version": "2.0.0",
+  "description": "Mover programas e jogos do SSD para o HD externo com symlinks",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "install-app": "npm install"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  }
+}
